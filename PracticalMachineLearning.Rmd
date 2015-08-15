@@ -1,0 +1,123 @@
+---
+title: "Practical Machine Learning"
+author: "Shawn Estes"
+date: "August 15, 2015"
+output: html_document
+---
+
+### Overview
+
+Our dataset includes user activity levels from accelerometers worn during weight lifting exercises. The goal is to predict which activity was most efficient. 
+
+### Data Sources
+
+For detailed information on the dataset, see: http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har in particular the section on Weight Lifting Exercises. 
+
+The training dataset is available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The testing dataset (used only for the submitted portion of the assignment) is available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data is provided and used by the following: 
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013. 
+
+
+Setup and Data Cleaning
+
+R package Caret is required for running the code. We'll set a seed to aid reproducibility and then download files from the source if they are not already available locally.
+
+Data cleaning is relatively simple. We need to be on the lookout for NA values that are not actually labeled in as NA. In this case, some values are received as "!#DIV/0" from the raw data. These values are useless and are overwritten as NA. 
+
+Note: all transformations are applied directly to both training and testing splits. 
+
+```{r}
+
+library(caret)
+library(randomForest)
+set.seed(333)
+
+trainingSetUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testingSetUrl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+if(!file.exists("data/pml-training.csv")) { 
+  # Download the file 
+  download.file(trainingSetUrl, destfile="./data/pml-training.csv", method="curl")
+}
+
+if(!file.exists("data/pml-testing.csv")) { 
+  # Download the file 
+  download.file(testingSetUrl, destfile="./data/pml-testing.csv", method="curl")
+}
+
+
+fullTrainingDataSet <- read.csv("./data/pml-training.csv", na.strings=c("NA","#DIV/0!",""), head=TRUE)
+oos_test <- read.csv("./data/pml-testing.csv", na.strings=c("NA","#DIV/0!",""), head=TRUE)
+
+# Partition the training data into 60/40 split 
+inTrain <- createDataPartition(y=fullTrainingDataSet$classe, p=0.60, list=FALSE)
+training <- fullTrainingDataSet[inTrain,]
+testing <- fullTrainingDataSet[-inTrain,]
+dim(training); dim(testing);
+
+# Set any of the values of NA to 0 
+training[is.na(training)] <- 0
+#Remove near zero variables from training
+if (length(nearZeroVar(training)) > 0) {
+  training <- training[, -nearZeroVar(training)] 
+}
+
+# Duplicate transformations in testing
+testing[is.na(testing)] <- 0
+if (length(nearZeroVar(testing)) > 0) {
+  testing <- testing[, -nearZeroVar(testing)] 
+}
+
+# And in the out of sample tests
+oos_test[is.na(oos_test)] <- 0
+if (length(nearZeroVar(oos_test)) > 0) {
+  oos_test <- oos_test[, -nearZeroVar(oos_test)] 
+}
+
+# Verify dims between training and testing after cleaning
+dim(training); dim(testing);
+```
+
+##Model fitting 
+
+Random Forest is known for its accuracy, albeit not speed. With that in mind, this is a relatively small dataset so I've prioritized accuracy over speed. To greater reduce the speeds, I've chosen to subset the random forest to just the relevant columns. This is also helps to prevent levels issues in new datasets.
+
+
+```{r}
+
+# Fit against a random forest
+modFit <- randomForest(classe ~roll_belt+pitch_belt+magnet_dumbbell_y+magnet_dumbbell_z+pitch_forearm+accel_dumbbell_y+roll_arm+roll_forearm, data=training)
+print(modFit)
+```
+
+### Estimate and testing of error rates
+
+The random forest generated has a model that has an out-of-bag (OOB) error is 1.88%. I'd suspect the same results when predicting against the test set on this model. Let's test it and show the confusion matrix results. 
+
+```{r}
+predictions <- predict(modFit, testing, type = "class")
+# Show the results in a confusion matrix
+confusionMatrix(predictions, testing$classe)
+```
+
+The accuracy rate of 98.1% matches closely with our OOB error estimates. Results were tested against the out of sample testing set successfully on all problems: 20 out of 20. 
+
+
+```{r echo=FALSE}
+
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+test_predictions <- predict(modFit, newdata=oos_test, type = "class")
+oos_test$classe <- test_predictions
+submissions <- data.frame(problem_id = oos_test$problem_id, classe = test_predictions)
+pml_write_files(submissions$classe)
+```
