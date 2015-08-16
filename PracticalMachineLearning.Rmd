@@ -1,5 +1,5 @@
 ---
-title: "Practical Machine Learning"
+title: "Predicting weight lifting exercise quality"
 author: "Shawn Estes"
 date: "August 15, 2015"
 output: html_document
@@ -7,11 +7,11 @@ output: html_document
 
 ### Overview
 
-Our dataset includes user activity levels from accelerometers worn during weight lifting exercises. The goal is to predict which activity was most efficient. 
+This is the course project for Coursera's Practical Machine Learning class.Our dataset includes user activity levels from accelerometers worn during weight lifting exercises. The goal is to predict which activity was performed based on a predefined dataset. 
 
 ### Data Sources
 
-For detailed information on the dataset, see: http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har in particular the section on Weight Lifting Exercises. 
+For detailed information on the dataset, see: http://groupware.les.inf.puc-rio.br/har in particular the section on Weight Lifting Exercises. 
 
 The training dataset is available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
 
@@ -84,7 +84,7 @@ dim(training); dim(testing);
 
 ##Model fitting 
 
-Random Forest is known for its accuracy, albeit not speed. With that in mind, this is a relatively small dataset so I've prioritized accuracy over speed. To greater reduce the speeds, I've chosen to subset the random forest to just the relevant columns. This is also helps to prevent levels issues in new datasets.
+Random Forest is known for its accuracy, albeit not speed. With that in mind, this is a relatively small dataset so I've prioritized accuracy over speed. To greater reduce the speeds, I've chosen to subset the random forest to just the relevant columns. This also helps to prevent levels issues in new datasets.
 
 
 ```{r}
@@ -96,7 +96,7 @@ print(modFit)
 
 ### Estimate and testing of error rates
 
-The random forest generated has a model that has an out-of-bag (OOB) error is 1.88%. I'd suspect the same results when predicting against the test set on this model. Let's test it and show the confusion matrix results. 
+The random forest model has an out-of-bag (OOB) error of 1.88%. I'd suspect the same results when predicting against the test set on this model. Let's test it and show the confusion matrix results. 
 
 ```{r}
 predictions <- predict(modFit, testing, type = "class")
@@ -104,8 +104,9 @@ predictions <- predict(modFit, testing, type = "class")
 confusionMatrix(predictions, testing$classe)
 ```
 
-The accuracy rate of 98.1% matches closely with our OOB error estimates. Results were tested against the out of sample testing set successfully on all problems: 20 out of 20. 
+The accuracy rate of 98.1% matches closely with our OOB error estimates. Using the out of sample tests with the submission assignment, it succeeded in predicting all 20 of the problems on the first attempt. 
 
+In conclusion, this random forest model should be able to predict the manner in which exercises were performed using this type of accelerometer data. 
 
 ```{r echo=FALSE}
 
